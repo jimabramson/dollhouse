@@ -1,41 +1,27 @@
 import curses
+import os
 import subprocess
 
-CMD_PLAY_ONCE = '/Applications/VLC.app/Contents/MacOS/VLC --play-and-exit'
+CMD_PLAY_ONCE = 'omxplayer -b'
 
-CLIP_DEFAULT = '/Users/jim/dev/pyg/MVI_0784.h264'
-CLIP_A = '/Users/jim/dev/pyg/MVI_0785.h264'
-CLIP_B = '/Users/jim/dev/pyg/MVI_0786.h264'
+CLIP_DIR = '/home/pi'
+CLIP_DEFAULT = ''
+CLIP_A = 'test_640x480.mp4'
 
 
 def play_clip(clip):
 
-    subprocess.call('{} {}'.format(CMD_PLAY_ONCE, clip), shell=True)
+    clip_path = os.path.join(CLIP_DIR, clip)
+    subprocess.call('{} {}'.format(CMD_PLAY_ONCE, clip_path), shell=True)
 
 
 def main(stdscr):
     
-    curses.start_color()
-    curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLUE)
-    curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-
-    stdscr.bkgd(curses.color_pair(1))
-    stdscr.refresh()
-
-    win = curses.newwin(5, 20, 5, 5)
-    win.bkgd(curses.color_pair(2))
-    win.box()
-    win.addstr(2, 2, "Hallo, Welt!")
-    win.refresh()
-
     while 1:
         c = stdscr.getch()
-        if c == ord('a'):
+        if c == ord(' '):
             play_clip(CLIP_A)
-            # TODO flush buffer
-        elif c == ord('b'):
-            play_clip(CLIP_B)
-            # TODO flush buffer
+            curses.flushinp()            
 
 
 if __name__ == '__main__':
