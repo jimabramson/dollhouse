@@ -1,39 +1,72 @@
+#!/usr/bin/env python
+
 import curses
+import logging
 import os
 import random
 import signal
 import subprocess
+import sys
 
-CMD_PLAY_ONCE = 'omxplayer -b --layer 2'
-CMD_PLAY_LOOP = 'omxplayer --loop --no-osd --layer 1'
 
-CLIP_DIR = '/home/pi/dollhouse-clips'
-CLIP_DEFAULT = os.path.join(CLIP_DIR, 'Default.mp4')
-CLIPS_NO = [ os.path.join(CLIP_DIR, 'No', name) for name in os.listdir(os.path.join(CLIP_DIR, 'No')) if not name.startswith('.') ]
-CLIPS_YES = [ os.path.join(CLIP_DIR, 'Yes', name) for name in os.listdir(os.path.join(CLIP_DIR, 'Yes')) if not name.startswith('.') ]
+logging.basicConfig(filename='/home/pi/dollhouse-control.log', level=logging.INFO)
+log = logging.getLogger()
+
+CMD_PLAY_ONCE = '/usr/bin/omxplayer -b --no-keys --layer 2'
+CMD_PLAY_LOOP = '/usr/bin/omxplayer -b --no-keys --loop --no-osd --layer 1'
+
+
+def get_clips(clip_dir, path):
+    dirname = os.path.join(clip_dir, path)
+    return [os.path.join(dirname, name) for name in os.listdir(dirname) if not name.startswith('.')]
 
 
 def play_clip(clip):
 
-    subprocess.call('{} {}'.format(CMD_PLAY_ONCE, clip), shell=True)
+    try:
+        subprocess.call('{} {}'.format(CMD_PLAY_ONCE, clip), shell=True)
+    except Exception, e:
+        log.exception('could not play clip')
+        raise
 
 
-def main(stdscr):
+def main(stdscr, clip_dir):
     
-    loop = subprocess.Popen('{} {}'.format(CMD_PLAY_LOOP, CLIP_DEFAULT), stdout=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+    clip_default = os.path.join(clip_dir, 'Default.mp4')
+    clips_no = get_clips(clip_dir, 'No')
+    clips_yes = get_clips(clip_dir, 'Yes')
+
+    # startup diagnostics
+    log.info('using default clip: %s', clip_default)
+    log.info('using "No" clips (%s):', len(clips_no))
+    for clip in clips_no:
+        log.info('\t%s', clip)
+    log.info('using "Yes" clips (%s):', len(clips_yes))
+    for clip in clips_yes:
+        log.info('\t%s', clip)
+    # end diagnostics
+
+    loop = subprocess.Popen('{} {}'.format(CMD_PLAY_LOOP, clip_default), stdout=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
     try:
         while 1:
             c = stdscr.getch()
             if c == ord(' '):
-                play_clip(random.choice(CLIPS_NO + CLIPS_NO + CLIPS_YES))
+                play_clip(random.choice(clips_no + clips_no + clips_yes))
                 curses.flushinp()            
     finally:
         os.killpg(loop.pid, signal.SIGTERM)
 
 
 if __name__ == '__main__':
+    
+    log.info('starting up')
+    clip_dir = sys.argv[1]
+    log.info('clip_dir: %s', clip_dir)
     try:
-        curses.wrapper(main)
+        curses.wrapper(main, clip_dir)
     except KeyboardInterrupt:
-        print "Got KeyboardInterrupt exception. Exiting..."
-        exit() 
+        log.info('keyboard interrupt, exiting')
+    
+    log.info('shutting down')    
+    exit()
+
