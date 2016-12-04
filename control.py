@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import curses
 import logging
 import os
 import random
@@ -38,7 +37,7 @@ def play_bell():
     subprocess.Popen('{} {}'.format(CMD_PLAY_BELL, BELL_CLIP), shell=True)
 
 
-def main(stdscr, clip_dir):
+def main(clip_dir):
     
     clip_default = os.path.join(clip_dir, 'Default.mp4')
     clips_no = get_clips(clip_dir, 'No')
@@ -60,14 +59,11 @@ def main(stdscr, clip_dir):
 
     try:
         while 1:
-            c = stdscr.getch()
             input_state = GPIO.input(18)
-
-            if input_state == False or c == ord(' '):
+            if input_state == False:
                 # rang bell
                 play_bell()
                 play_clip(random.choice(clips_no + clips_no + clips_yes))
-                curses.flushinp()
     finally:
         GPIO.cleanup()
         os.killpg(loop.pid, signal.SIGTERM)
@@ -79,7 +75,7 @@ if __name__ == '__main__':
     clip_dir = sys.argv[1]
     log.info('clip_dir: %s', clip_dir)
     try:
-        curses.wrapper(main, clip_dir)
+        main(clip_dir)
     except KeyboardInterrupt:
         log.info('keyboard interrupt, exiting')
     
