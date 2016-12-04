@@ -4,6 +4,7 @@ import curses
 import logging
 import os
 import random
+import RPi.GPIO as GPIO
 import signal
 import subprocess
 import sys
@@ -14,6 +15,9 @@ log = logging.getLogger()
 
 CMD_PLAY_ONCE = '/usr/bin/omxplayer -b --no-keys --layer 2'
 CMD_PLAY_LOOP = '/usr/bin/omxplayer -b --no-keys --loop --no-osd --layer 1'
+CMD_PLAY_BELL = '/usr/bin/mpg123'
+
+BELL_CLIP = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'doorbell.mp3')
 
 
 def get_clips(clip_dir, path):
@@ -28,6 +32,10 @@ def play_clip(clip):
     except Exception, e:
         log.exception('could not play clip')
         raise
+
+
+def play_bell():
+    subprocess.Popen('{} {}'.format(CMD_PLAY_BELL, BELL_CLIP), shell=True)
 
 
 def main(stdscr, clip_dir):
@@ -47,13 +55,21 @@ def main(stdscr, clip_dir):
     # end diagnostics
 
     loop = subprocess.Popen('{} {}'.format(CMD_PLAY_LOOP, clip_default), stdout=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
     try:
         while 1:
             c = stdscr.getch()
-            if c == ord(' '):
+            input_state = GPIO.input(18)
+
+            if input_state == False or c == ord(' '):
+                # rang bell
+                play_bell()
                 play_clip(random.choice(clips_no + clips_no + clips_yes))
-                curses.flushinp()            
+                curses.flushinp()
     finally:
+        GPIO.cleanup()
         os.killpg(loop.pid, signal.SIGTERM)
 
 
